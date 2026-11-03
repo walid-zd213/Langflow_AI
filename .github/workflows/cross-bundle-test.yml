@@ -66,7 +66,8 @@ jobs:
     name: ${{ matrix.bundle }} (py${{ matrix.python-version }})
     needs: discover
     if: needs.discover.outputs.bundles != '[]'
-    runs-on: ubuntu-latest
+    # 3.15 builds SDKs from source; ibm-db's bundled driver needs libxml2.so.2, which ubuntu-26.04 dropped.
+    runs-on: ${{ matrix.python-version == '3.15' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 30
     # Python 3.15 is a preview lane: it reports ecosystem readiness without failing the run.
     continue-on-error: ${{ matrix.python-version == '3.15' }}
@@ -126,7 +127,9 @@ jobs:
 
           # Valkey loads its SDK lazily, and its unit tests mock the client.
           # Import the real SDK so source packaging failures remain visible.
-          if name == "lfx-valkey":
+          # valkey-glide ships no cp315 wheels yet, and its sdist build omits the
+          # generated protobuf modules, so the SDK cannot import on 3.15.
+          if name == "lfx-valkey" and sys.version_info < (3, 15):
               importlib.import_module("glide_sync")
 
           # The manifest-less metapackage must be discoverable by the loader.
