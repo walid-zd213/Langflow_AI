@@ -420,6 +420,14 @@ def validate_code_safety(code: str) -> None:
         if isinstance(node, ast.Attribute) and _is_blocked_attribute(node.attr):
             msg = f"Access to attribute '{node.attr}' is not allowed."
             raise ValueError(msg)
+        if isinstance(node, ast.MatchClass):
+            if node.patterns:
+                msg = "Positional class patterns are not allowed. Use keyword patterns with named attributes instead."
+                raise ValueError(msg)
+            for attr in node.kwd_attrs:
+                if _is_blocked_attribute(attr):
+                    msg = f"Access to attribute '{attr}' is not allowed."
+                    raise ValueError(msg)
         if (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
