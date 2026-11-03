@@ -93,7 +93,7 @@ INPUT_TYPE_COMPONENT_TYPES = {
 }
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Generator, Iterable
+    from collections.abc import AsyncIterator, Callable, Generator
     from typing import Any
 
     from lfx.custom.custom_component.component import Component
@@ -2897,13 +2897,15 @@ class Graph:
         # Edge takes two vertices as arguments, so we need to build the vertices first
         # and then build the edges
         # if we can't find a vertex, we raise an error
-        edges: set[CycleEdge | Edge] = set()
-        for edge in self._edges:
-            new_edge = self.build_edge(edge)
-            edges.add(new_edge)
+        # Preserve insertion order: previously `list(set(...))` ordered the edges by
+        # their hash, which depends on PYTHONHASHSEED, so a list input received its
+        # values in a different order on each process (see issue #16110).
+        # `dict.fromkeys` keeps the order in which edges appear in self._edges while
+        # still deduplicating identical edges.
+        edges = list(dict.fromkeys(self.build_edge(edge) for edge in self._edges))
         if self.vertices and not edges:
             logger.warning("Graph has vertices but no edges")
-        return list(cast("Iterable[CycleEdge]", edges))
+        return cast("list[CycleEdge]", edges)
 
     def build_edge(self, edge: EdgeData) -> CycleEdge | Edge:
         source = self.get_vertex(edge["source"])
